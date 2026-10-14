@@ -121,7 +121,9 @@ export interface PlannedExercise {
   restSeconds?: number
 }
 
-export type ItemStatus = 'pending' | 'completed' | 'partial' | 'skipped'
+/** `missed`: never started — set once the day is over. */
+export type ItemStatus =
+  'pending' | 'completed' | 'partial' | 'skipped' | 'missed'
 
 export interface PlannedItem {
   id: string
@@ -191,7 +193,7 @@ export interface SessionLog {
   startedAt: string
   endedAt: string
   durationSec: number
-  status: Exclude<ItemStatus, 'pending'>
+  status: Exclude<ItemStatus, 'pending' | 'missed'>
   exercises: ExerciseLog[]
   post?: PostCheck
 }

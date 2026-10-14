@@ -69,6 +69,45 @@ describe('storage', () => {
     expect(createStore(backend).listDays()).toEqual([])
   })
 
+  it('closes out past days: unstarted items are missed, gaps get a record', () => {
+    const store = createStore(memoryBackend())
+    const plan = buildDemoHistory('2026-10-13', DEFAULT_SETTINGS)[0].plan!
+    store.saveDay({
+      date: '2026-10-10',
+      sessions: [],
+      plan: {
+        ...plan,
+        items: plan.items.map((i, k) => ({
+          ...i,
+          status: k === 0 ? 'completed' : 'pending',
+        })),
+      },
+    })
+    store.saveDay({ date: '2026-10-13', sessions: [] })
+    store.closePastDays('2026-10-13')
+
+    const items = store.getDay('2026-10-10')!.plan!.items
+    expect(items[0].status).toBe('completed')
+    expect(items.slice(1).every((i) => i.status === 'missed')).toBe(true)
+    expect(store.getDay('2026-10-11')).toEqual({
+      date: '2026-10-11',
+      sessions: [],
+    })
+    expect(store.getDay('2026-10-12')).toBeDefined()
+    expect(store.listDays()).toHaveLength(4)
+
+    const csv = toCsv(store.listDays())
+    expect(csv).toContain(',missed,0,')
+  })
+
+  it('does not close out from demo days alone', () => {
+    const store = createStore(memoryBackend())
+    store.seedDemo(buildDemoHistory('2026-10-13', DEFAULT_SETTINGS))
+    const before = JSON.stringify(store.listDays())
+    store.closePastDays('2026-10-20')
+    expect(JSON.stringify(store.listDays())).toBe(before)
+  })
+
   it('produces a CSV with a header row', () => {
     const csv = toCsv(buildDemoHistory('2026-10-13', DEFAULT_SETTINGS))
     expect(csv.split('\n')[0]).toMatch(/^date,energy/)

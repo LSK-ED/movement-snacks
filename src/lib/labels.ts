@@ -41,4 +41,5 @@ export const STATUS_LABELS: Record<ItemStatus, string> = {
   completed: 'Done',
   partial: 'Partly done',
   skipped: 'Skipped',
+  missed: 'Missed',
 }

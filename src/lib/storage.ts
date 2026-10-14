@@ -4,6 +4,7 @@ import {
   type DayRecord,
   type Settings,
 } from '@/domain/types'
+import { addDays } from '@/lib/dates'
 
 // All persistence goes through this module. It speaks to a tiny key-value
 // backend so localStorage can be swapped for IndexedDB (or a test double)
@@ -89,6 +90,34 @@ export function createStore(backend: KeyValueBackend) {
         .filter((d): d is DayRecord => !!d)
     },
 
+    /**
+     * Closes out every real day before `today`, so history records what
+     * wasn't done as well as what was: planned items never started become
+     * `missed`, and days the app wasn't opened get an empty record.
+     */
+    closePastDays(today: DateKey): void {
+      const first = store.listDays().find((d) => !d.demo)
+      if (!first) return
+      for (let date = first.date; date < today; date = addDays(date, 1)) {
+        const day = store.getDay(date)
+        if (!day) {
+          store.saveDay({ date, sessions: [] })
+          continue
+        }
+        if (day.demo || !day.plan?.items.some((i) => i.status === 'pending'))
+          continue
+        store.saveDay({
+          ...day,
+          plan: {
+            ...day.plan,
+            items: day.plan.items.map((i) =>
+              i.status === 'pending' ? { ...i, status: 'missed' } : i,
+            ),
+          },
+        })
+      }
+    },
+
     getSettings(): Settings {
       return { ...DEFAULT_SETTINGS, ...read<Partial<Settings>>(SETTINGS) }
     },
@@ -172,8 +201,19 @@ export function toCsv(days: DayRecord[]): string {
       c?.stiffness,
       c?.stiffAreas.join(' '),
     ]
+    // Planned items with no session (missed or skipped) get a row of their own.
+    const logged = new Set(day.sessions.map((s) => s.itemId))
+    const notDone = (day.plan?.items ?? []).filter(
+      (i) => i.status !== 'pending' && !logged.has(i.id),
+    )
+    for (const item of notDone) {
+      rows.push(
+        [...base, item.status, 0, ...Array(9).fill('')].map(esc).join(','),
+      )
+    }
     if (day.sessions.length === 0) {
-      rows.push([...base, ...Array(11).fill('')].map(esc).join(','))
+      if (!notDone.length)
+        rows.push([...base, ...Array(11).fill('')].map(esc).join(','))
       continue
     }
     for (const s of day.sessions) {

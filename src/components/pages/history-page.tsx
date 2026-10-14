@@ -191,7 +191,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 function DayList() {
-  const { allDays } = useAppState()
+  const { allDays, today } = useAppState()
   const days = [...allDays].reverse()
   if (!days.length)
     return <p className="text-muted-foreground">Nothing logged yet.</p>
@@ -199,14 +199,14 @@ function DayList() {
     <ol className="space-y-3">
       {days.map((d) => (
         <li key={d.date}>
-          <DayCard day={d} />
+          <DayCard day={d} past={d.date < today} />
         </li>
       ))}
     </ol>
   )
 }
 
-function DayCard({ day }: { day: DayRecord }) {
+function DayCard({ day, past }: { day: DayRecord; past: boolean }) {
   const c = day.checkIn
   const time = (iso?: string) =>
     iso
@@ -247,6 +247,12 @@ function DayCard({ day }: { day: DayRecord }) {
           </p>
         ) : (
           <p className="text-muted-foreground">No check-in.</p>
+        )}
+        {past && done.length === 0 && (
+          <p className="font-medium">
+            No exercise this day
+            {!day.usage && !c && ' — the app wasn’t opened'}.
+          </p>
         )}
         {day.plan && (
           <ul className="space-y-2">

@@ -44,9 +44,12 @@ const RPE = Array.from({ length: 10 }, (_, i) => ({
 export function PostSessionCheck({
   log,
   onSave,
+  onSkip,
 }: {
   log: Omit<SessionLog, 'post' | 'date'>
   onSave: (post: PostCheck) => void
+  /** The session is already saved; this just leaves without the extra detail. */
+  onSkip: () => void
 }) {
   const voice = useVoice()
   const [energy, setEnergy] = useState<Level>()
@@ -218,11 +221,20 @@ export function PostSessionCheck({
         <Button size="lg" disabled={!ready} onClick={save}>
           Save
         </Button>
-        {!ready && (
-          <p className="text-sm text-muted-foreground">
-            Pick an effort rating to save.
-          </p>
-        )}
+        <Button
+          size="lg"
+          variant="ghost"
+          onClick={() => {
+            voice.stopAll()
+            onSkip()
+          }}
+        >
+          Skip
+        </Button>
+        <p className="text-sm text-muted-foreground">
+          Your exercises are already saved.
+          {!ready && ' Pick an effort rating to add how it felt, or skip.'}
+        </p>
       </CardFooter>
     </Card>
   )

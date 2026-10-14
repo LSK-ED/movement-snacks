@@ -34,6 +34,7 @@ interface AppState {
   saveCheckIn(checkIn: CheckIn): void
   savePlan(plan: Plan): void
   updateItem(itemId: string, patch: Partial<PlannedItem>): void
+  /** Saves or updates a session on its own day — safe to call as it progresses. */
   logSession(log: SessionLog): void
   sessionStarted(): void
   touch(): void
@@ -54,6 +55,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   // Record app opens (and roll over at midnight if left open).
   useEffect(() => {
     const now = new Date().toISOString()
+    store.closePastDays(today)
     if (!openedDays.has(today)) {
       openedDays.add(today)
       store.updateDay(today, (d) => ({
@@ -75,10 +77,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(id)
   }, [today, refresh])
 
-  const mutateToday = useCallback(
-    (fn: (d: DayRecord) => DayRecord) => {
+  const mutateDay = useCallback(
+    (date: string, fn: (d: DayRecord) => DayRecord) => {
       const now = new Date().toISOString()
-      store.updateDay(today, (d) => {
+      store.updateDay(date, (d) => {
         const next = fn(d)
         return {
           ...next,
@@ -87,7 +89,11 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       })
       refresh()
     },
-    [today, refresh],
+    [refresh],
+  )
+  const mutateToday = useCallback(
+    (fn: (d: DayRecord) => DayRecord) => mutateDay(today, fn),
+    [today, mutateDay],
   )
 
   const value = useMemo<AppState>(() => {
@@ -128,7 +134,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         )
       },
       logSession(log) {
-        mutateToday((d) => ({
+        mutateDay(log.date, (d) => ({
           ...d,
           sessions: [...d.sessions.filter((s) => s.id !== log.id), log],
           plan: d.plan && {
@@ -167,7 +173,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       exportJson: () => JSON.stringify(store.exportAll(), null, 2),
       exportCsv: () => toCsv(store.listDays()),
     }
-  }, [days, today, settings, mutateToday, refresh])
+  }, [days, today, settings, mutateDay, mutateToday, refresh])
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

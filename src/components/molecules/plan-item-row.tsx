@@ -33,6 +33,7 @@ export function PlanItemRow({
   showWhy?: boolean
 } & ItemActions) {
   const pending = item.status === 'pending'
+  const notDone = item.status === 'skipped' || item.status === 'missed'
   return (
     <li
       className={cn(
@@ -60,8 +61,8 @@ export function PlanItemRow({
           </span>
           {item.kind === 'session' && <Badge variant="secondary">Longer</Badge>}
           {!pending && (
-            <Badge variant={item.status === 'skipped' ? 'outline' : 'default'}>
-              {item.status !== 'skipped' && <Check />}
+            <Badge variant={notDone ? 'outline' : 'default'}>
+              {!notDone && <Check />}
               {STATUS_LABELS[item.status]}
             </Badge>
           )}

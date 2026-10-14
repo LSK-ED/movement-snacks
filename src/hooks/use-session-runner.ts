@@ -60,6 +60,8 @@ interface Totals {
 export function useSessionRunner(
   item: PlannedItem,
   say: (text: string, opts?: { quiet?: boolean }) => Promise<void>,
+  /** Called with the log so far after every completed step, so leaving mid-session loses nothing. */
+  onProgress?: (log: Omit<SessionLog, 'post'>) => void,
 ) {
   const steps = useMemo(() => buildSteps(item), [item])
   const [i, setI] = useState(0)
@@ -150,6 +152,7 @@ export function useSessionRunner(
 
   function completeStep(how: 'done' | 'timer', value = count) {
     record(how, value)
+    onProgress?.(buildLog())
     if (i >= steps.length - 1) return finish()
     const next = steps[i + 1]
     setPhase('rest')

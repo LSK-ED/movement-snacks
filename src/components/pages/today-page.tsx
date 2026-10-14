@@ -16,10 +16,11 @@ export function TodayPage({
 }) {
   const app = useAppState()
   const { todayRecord: day, today, history, settings } = app
-  const [running, setRunning] = useState<PlannedItem>()
+  // The day it started on, so a session that runs past midnight stays with its plan.
+  const [running, setRunning] = useState<{ item: PlannedItem; date: string }>()
 
   const setRun = (item?: PlannedItem) => {
-    setRunning(item)
+    setRunning(item && { item, date: today })
     onRunningChange?.(!!item)
   }
 
@@ -48,11 +49,12 @@ export function TodayPage({
   if (running) {
     return (
       <SessionRunner
-        key={running.id}
-        item={running}
+        key={running.item.id}
+        item={running.item}
         onCancel={() => setRun()}
+        onProgress={(log) => app.logSession({ ...log, date: running.date })}
         onFinish={(log) => {
-          app.logSession({ ...log, date: today })
+          app.logSession({ ...log, date: running.date })
           setRun()
         }}
       />

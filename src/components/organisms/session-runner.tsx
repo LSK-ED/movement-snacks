@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import {
   Check,
   ChevronsDown,
@@ -31,17 +31,27 @@ import { PostSessionCheck } from './post-session-check'
 
 export function SessionRunner({
   item,
+  onProgress,
   onFinish,
   onCancel,
 }: {
   item: PlannedItem
+  /** Saves the session so far; called repeatedly with the same log id. */
+  onProgress: (log: Omit<SessionLog, 'date'>) => void
   onFinish: (log: Omit<SessionLog, 'date'>) => void
   onCancel: () => void
 }) {
   const voice = useVoice()
-  const run = useSessionRunner(item, voice.say)
+  const run = useSessionRunner(item, voice.say, onProgress)
   // Built once, when the session finishes.
   const log = useRef<Omit<SessionLog, 'post' | 'date'>>(undefined)
+
+  // Save as soon as it ends, so the after-session check is optional.
+  useEffect(() => {
+    if (run.phase !== 'finished') return
+    log.current ??= run.buildLog()
+    if (log.current.status !== 'skipped') onProgress(log.current)
+  }, [run.phase])
 
   useVoiceHandler(
     (text) => {
@@ -91,6 +101,7 @@ export function SessionRunner({
       <PostSessionCheck
         log={finished}
         onSave={(post: PostCheck) => onFinish({ ...finished, post })}
+        onSkip={() => onFinish(finished)}
       />
     )
   }
